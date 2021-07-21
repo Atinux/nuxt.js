@@ -164,6 +164,40 @@ export default class PostcssConfig {
     }
   }
 
+  mergeWithDefaultOptions (postcssOptions) {
+    if (isPureObject(postcssOptions)) {
+      if (postcssOptions.preset) {
+        this.preset = postcssOptions.preset
+        delete postcssOptions.preset
+      }
+      if (Array.isArray(postcssOptions.plugins)) {
+        defaults(postcssOptions, this.defaultPostcssOptions)
+      } else if (typeof postcssOptions.postcssOptions === 'function') {
+        const postCssOptionsFunction = postcssOptions.postcssOptions
+        postcssOptions = (loaderContext) => {
+          const result = this.mergeWithDefaultOptions(postCssOptionsFunction(loaderContext))
+          if (result) {
+            return result.postcssOptions
+          }
+        }
+      } else {
+        // Keep the order of default plugins
+        postcssOptions = merge({}, this.defaultPostcssOptions, postcssOptions.postcssOptions || postcssOptions)
+        this.loadPlugins(postcssOptions)
+      }
+
+      const { execute } = postcssOptions
+      delete postcssOptions.execute
+      delete postcssOptions.order
+
+      return {
+        execute,
+        postcssOptions,
+        sourceMap: this.cssSourceMap
+      }
+    }
+  }
+
   config () {
     /* istanbul ignore if */
     if (!this.postcssOptions) {
@@ -181,28 +215,6 @@ export default class PostcssConfig {
     postcssOptions = this.normalize(cloneDeep(this.postcssOptions))
 
     // Apply default plugins
-    if (isPureObject(postcssOptions)) {
-      if (postcssOptions.preset) {
-        this.preset = postcssOptions.preset
-        delete postcssOptions.preset
-      }
-      if (Array.isArray(postcssOptions.plugins)) {
-        defaults(postcssOptions, this.defaultPostcssOptions)
-      } else {
-        // Keep the order of default plugins
-        postcssOptions = merge({}, this.defaultPostcssOptions, postcssOptions)
-        this.loadPlugins(postcssOptions)
-      }
-
-      const { execute } = postcssOptions
-      delete postcssOptions.execute
-      delete postcssOptions.order
-
-      return {
-        execute,
-        postcssOptions,
-        sourceMap: this.cssSourceMap
-      }
-    }
+    return this.mergeWithDefaultOptions(postcssOptions)
   }
 }
