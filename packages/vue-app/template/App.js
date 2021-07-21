@@ -184,11 +184,10 @@ export default {
         }
         if (page.$fetch) {
           p.push(page.$fetch())
-        } else {
-          // Get all component instance to call $fetch
-          for (const component of getChildrenComponentInstancesUsingFetch(page.$vnode.componentInstance)) {
-            p.push(component.$fetch())
-          }
+        }
+        // Get all component instance to call $fetch
+        for (const component of getChildrenComponentInstancesUsingFetch(page.$vnode.componentInstance, [], pages)) {
+          p.push(component.$fetch())
         }
         <% } %>
         <% if (features.asyncData) { %>
@@ -205,6 +204,24 @@ export default {
         <% } %>
         return Promise.all(p)
       })
+
+      <% if (features.fetch) { %>
+      const layout = this.$children.find((component) => component._name?.toLowerCase().includes("layouts"))
+      // if layout is enabled
+      if (layout) {
+        const p = [];
+        // get layout fetch if exist
+        if (layout.$fetch) {
+          p.push(layout.$fetch())
+        }
+        // Get all component instance from layout to call $fetch
+        for (const component of getChildrenComponentInstancesUsingFetch(layout.$vnode.componentInstance, [], pages)) {
+          p.push(component.$fetch())
+        }
+
+        promises.push(Promise.all(p))
+      }
+      <% } %>
       try {
         await Promise.all(promises)
       } catch (error) {
